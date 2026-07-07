@@ -1,0 +1,27 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: k8s-node-app
+  namespace: k8s-node-app
+spec:
+  interval: 5m
+  releaseName: k8s-node-app-prod
+  targetNamespace: k8s-node-app
+  chart:
+    spec:
+      chart: ./charts/k8s-node-app
+      sourceRef:
+        kind: GitRepository
+        name: node-app-source
+        namespace: flux-system
+  values:
+    replicaCount: 3
+    image:
+      tag: "stable-v1.0.0"  # Строгая фиксация продакшен-версии
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi

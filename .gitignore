@@ -1,0 +1,58 @@
+# ====================
+# Terraform Rules
+# ====================
+# Log files
+*.log
+*.hlcl
+
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude all variable files with sensitive data
+*.tfvars
+*.tfvars.json
+
+# Allow only sample tfvars files if you create them later (optional)
+!*.tfvars.example
+
+# Ignore override files
+*.override.tf
+*.override.tf.json
+*_override.tf
+*_override.tf.json
+
+# ====================
+# Python (Bootstrap) Rules
+# ====================
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+dist/
+build/
+*.egg-info/
+
+# ====================
+# OS & IDE Rules
+# ====================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

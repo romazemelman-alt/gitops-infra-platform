@@ -1,0 +1,6 @@
+soft-fail: false
+framework:
+  - terraform
+check:
+  - CKV_AWS_149 #  AWS Secrets Manager will be encrypted by custom KMS
+  - CKV_AWS_116 #  AWS Lambda for rotation will be loged dead-letter-queue

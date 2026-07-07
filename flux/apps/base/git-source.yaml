@@ -1,0 +1,10 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: node-app-source
+  namespace: flux-system
+spec:
+  interval: 1m0s
+  url: https://github.com/romazemelman-alt/k8s-node-app.git # REPLACE WITH YOUR REPO
+  ref:
+    branch: main
