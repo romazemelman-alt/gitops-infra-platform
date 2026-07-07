@@ -181,6 +181,6 @@ if __name__ == "__main__":
         print(f"=== STARTING INFRASTRUCTURE BOOTSTRAP FOR ENVIRONMENT: {ENV.upper()} ===")
         create_s3()
         create_dynamodb()
-        create_ecr()
+        # create_ecr()
         create_github_oidc()
         print(f"=== ALL BOOTSTRAP RESOURCES FOR {ENV.upper()} ARE READY ===")
