@@ -18,3 +18,5 @@ variable "custom_policies" {
 }
 
 variable "max_image_count" { type = number }
+
+variable "domain_name" { type = string }

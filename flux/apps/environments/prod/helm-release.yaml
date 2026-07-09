@@ -17,7 +17,7 @@ spec:
   values:
     replicaCount: 3
     image:
-      tag: "stable-v1.0.0"  # Строгая фиксация продакшен-версии
+      tag: "stable-v1.0.0"  # Strict pinning of the production
     resources:
       requests:
         cpu: 200m

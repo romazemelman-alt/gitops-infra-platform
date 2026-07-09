@@ -31,7 +31,7 @@ resource "aws_iam_policy" "secrets_manager" {
 
 module "dns" {
   source      = "../../modules/dns"
-  domain_name = "dev.terasky.my"
+  domain_name = var.domain_name
   environment = var.environment
 }
 

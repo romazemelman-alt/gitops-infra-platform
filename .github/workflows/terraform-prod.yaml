@@ -1,0 +1,57 @@
+name: Terraform Prod Deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform/environments/prod/**'
+      - 'terraform/modules/**'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform:
+    name: AWS Prod Infrastructure Provisioning
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: eu-central-1
+          audience: sts.amazonaws.com
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.5
+
+      - name: Terraform Init
+        run: |
+          cd terraform/environments/prod
+          terraform init
+
+      - name: Terraform Validate
+        run: |
+          cd terraform/environments/prod
+          terraform validate
+
+      - name: Terraform Plan
+        run: |
+          cd terraform/environments/prod
+          terraform plan -var-file="prod.tfvars" -out=tfplan
+
+#      - name: Terraform Apply
+#        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+#        run: |
+#          cd terraform/environments/prod
+#          terraform apply -auto-approve tfplan

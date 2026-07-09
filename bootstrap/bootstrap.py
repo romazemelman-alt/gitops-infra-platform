@@ -11,7 +11,8 @@ GITHUB_ORG_OR_USER = "romazemelman-alt"
 BASE_BUCKET_NAME = "roman-terasky-tf-state"
 BASE_DYNAMODB_TABLE = "roman-terasky-tf-locks"
 BASE_ECR_REPO_NAME = "k8s-node-app"
-BASE_ROLE_NAME = "github-actions-infra-role"
+BASE_INFRA_ROLE_NAME = "github-actions-infra-role"
+BASE_APP_ROLE_NAME = "github-actions-ecr-push"
 # ----------------------------
 
 parser = argparse.ArgumentParser(description="Bootstrap/Teardown AWS infrastructure for Terraform Backend & GitHub OIDC per environment.")
@@ -21,11 +22,11 @@ args = parser.parse_args()
 
 ENV = args.environment
 
-
 BUCKET_NAME = f"{BASE_BUCKET_NAME}-{ENV}"
 DYNAMODB_TABLE = f"{BASE_DYNAMODB_TABLE}-{ENV}"
 ECR_REPO_NAME = f"{ENV}-{BASE_ECR_REPO_NAME}"
-ROLE_NAME = f"{BASE_ROLE_NAME}-{ENV}"
+INFRA_ROLE_NAME = f"{BASE_INFRA_ROLE_NAME}-{ENV}"
+APP_ROLE_NAME = f"{BASE_APP_ROLE_NAME}-{ENV}"
 
 session = boto3.Session(region_name=REGION)
 s3_client = session.client('s3')
@@ -96,25 +97,57 @@ def create_github_oidc():
     except iam_client.exceptions.EntityAlreadyExistsException:
         print("[?] Global GitHub OIDC Provider already exists (shared across environments).")
 
-    trust_policy = {
+    # 1. INFRASTRUCTURE ROLE CONFIGURATION (gitops-infra-platform repository only)
+    infra_trust_policy = {
         "Version": "2012-10-17",
         "Statement": [{
             "Effect": "Allow",
             "Principal": {"Federated": OIDC_PROVIDER_ARN},
             "Action": "sts:AssumeRoleWithWebIdentity",
             "Condition": {
-                "StringLike": {"token.actions.githubusercontent.com:sub": f"repo:{GITHUB_ORG_OR_USER}/*:*"},
+                # Strict constraint: allow access only from infrastructure repository
+                "StringLike": {"token.actions.githubusercontent.com:sub": f"repo:{GITHUB_ORG_OR_USER}/gitops-infra-platform:*"},
                 "StringEquals": {"token.actions.githubusercontent.com:aud": "sts.amazonaws.com"}
             }
         }]
     }
 
     try:
-        iam_client.create_role(RoleName=ROLE_NAME, AssumeRolePolicyDocument=json.dumps(trust_policy))
-        iam_client.attach_role_policy(RoleName=ROLE_NAME, PolicyArn="arn:aws:iam::aws:policy/AdministratorAccess")
-        print(f"[+] IAM Role {ROLE_NAME} successfully created for GitHub Actions.")
+        iam_client.create_role(RoleName=INFRA_ROLE_NAME, AssumeRolePolicyDocument=json.dumps(infra_trust_policy))
+        iam_client.attach_role_policy(RoleName=INFRA_ROLE_NAME, PolicyArn="arn:aws:iam::aws:policy/AdministratorAccess")
+        print(f"[+] IAM Role {INFRA_ROLE_NAME} successfully created for Infrastructure pipeline.")
     except iam_client.exceptions.EntityAlreadyExistsException:
-        print(f"[?] IAM Role {ROLE_NAME} already exists.")
+        print(f"[?] IAM Role {INFRA_ROLE_NAME} already exists.")
+
+    # 2. APPLICATION ROLE CONFIGURATION (k8s-node-app repository only)
+    app_trust_policy = {
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Effect": "Allow",
+            "Principal": {"Federated": OIDC_PROVIDER_ARN},
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                # Strict constraint: allow access only from application repository
+                "StringLike": {"token.actions.githubusercontent.com:sub": f"repo:{GITHUB_ORG_OR_USER}/k8s-node-app:*"},
+                "StringEquals": {"token.actions.githubusercontent.com:aud": "sts.amazonaws.com"}
+            }
+        }]
+    }
+
+    try:
+        iam_client.create_role(RoleName=APP_ROLE_NAME, AssumeRolePolicyDocument=json.dumps(app_trust_policy))
+        # Restrict permissions to ECR registry operations only
+        iam_client.attach_role_policy(RoleName=APP_ROLE_NAME, PolicyArn="arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser")
+        print(f"[+] IAM Role {APP_ROLE_NAME} successfully created for App ECR push pipeline.")
+    except iam_client.exceptions.EntityAlreadyExistsException:
+        print(f"[?] IAM Role {APP_ROLE_NAME} already exists.")
+
+    # Output final ARNs for easy copy-pasting to GitHub Variables/Workflows
+    print("\n" + "="*50)
+    print("🚀 USE THESE ARNs IN YOUR GITHUB REPOSITORIES:")
+    print(f"1. For gitops-infra-platform (As GitHub Variable 'AWS_ROLE_ARN'):\n   arn:aws:iam::{ACCOUNT_ID}:role/{INFRA_ROLE_NAME}")
+    print(f"2. For k8s-node-app (In env 'AWS_ROLE_ARN' inside workflow):\n   arn:aws:iam::{ACCOUNT_ID}:role/{APP_ROLE_NAME}")
+    print("="*50 + "\n")
 
 # ==================== TEARDOWN / DESTROY SECTION ====================
 
@@ -122,7 +155,7 @@ def destroy_s3():
     print(f"[*] Purging and deleting S3 bucket: {BUCKET_NAME}...")
     try:
         bucket = s3_resource.Bucket(BUCKET_NAME)
-        bucket.object_versions.delete()  # Очищаем все версии файлов
+        bucket.object_versions.delete()
         s3_client.delete_bucket(Bucket=BUCKET_NAME)
         print(f"[-] S3 bucket {BUCKET_NAME} successfully deleted.")
     except s3_client.exceptions.NoSuchBucket:
@@ -147,18 +180,31 @@ def destroy_ecr():
         print(f"[?] ECR repository {ECR_REPO_NAME} not found, skipping.")
 
 def destroy_github_oidc():
-    print(f"[*] Tearing down IAM Role for environment {ENV}...")
+    print(f"[*] Tearing down IAM Roles for environment {ENV}...")
+
+    # Delete infrastructure role
     try:
-        iam_client.detach_role_policy(RoleName=ROLE_NAME, PolicyArn="arn:aws:iam::aws:policy/AdministratorAccess")
-        print(f"[-] AdministratorAccess policy detached from role {ROLE_NAME}.")
+        iam_client.detach_role_policy(RoleName=INFRA_ROLE_NAME, PolicyArn="arn:aws:iam::aws:policy/AdministratorAccess")
+        print(f"[-] AdministratorAccess policy detached from role {INFRA_ROLE_NAME}.")
     except iam_client.exceptions.NoSuchEntityException:
         pass
-
     try:
-        iam_client.delete_role(RoleName=ROLE_NAME)
-        print(f"[-] IAM Role {ROLE_NAME} successfully deleted.")
+        iam_client.delete_role(RoleName=INFRA_ROLE_NAME)
+        print(f"[-] IAM Role {INFRA_ROLE_NAME} successfully deleted.")
     except iam_client.exceptions.NoSuchEntityException:
-        print(f"[?] IAM Role {ROLE_NAME} not found, skipping.")
+        print(f"[?] IAM Role {INFRA_ROLE_NAME} not found, skipping.")
+
+    # Delete application role
+    try:
+        iam_client.detach_role_policy(RoleName=APP_ROLE_NAME, PolicyArn="arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser")
+        print(f"[-] AmazonEC2ContainerRegistryPowerUser policy detached from role {APP_ROLE_NAME}.")
+    except iam_client.exceptions.NoSuchEntityException:
+        pass
+    try:
+        iam_client.delete_role(RoleName=APP_ROLE_NAME)
+        print(f"[-] IAM Role {APP_ROLE_NAME} successfully deleted.")
+    except iam_client.exceptions.NoSuchEntityException:
+        print(f"[?] IAM Role {APP_ROLE_NAME} not found, skipping.")
 
     print("[*] Note: Global GitHub OIDC Provider left intact to prevent breaking other environments.")
 
@@ -167,7 +213,7 @@ def destroy_github_oidc():
 if __name__ == "__main__":
     if args.destroy:
         print(f"🚨 WARNING: DESTROY MODE ACTIVATED FOR ENVIRONMENT: {ENV.upper()} 🚨")
-        print(f"This will wipe out: S3 ({BUCKET_NAME}), DynamoDB ({DYNAMODB_TABLE}), ECR ({ECR_REPO_NAME}) and IAM Role ({ROLE_NAME})")
+        print(f"This will wipe out: S3 ({BUCKET_NAME}), DynamoDB ({DYNAMODB_TABLE}), ECR ({ECR_REPO_NAME}) and IAM Roles ({INFRA_ROLE_NAME} & {APP_ROLE_NAME})")
         confirm = input(f"Are you sure you want to completely delete resources for {ENV}? (yes/no): ")
         if confirm.lower() == 'yes':
             destroy_ecr()
@@ -181,6 +227,6 @@ if __name__ == "__main__":
         print(f"=== STARTING INFRASTRUCTURE BOOTSTRAP FOR ENVIRONMENT: {ENV.upper()} ===")
         create_s3()
         create_dynamodb()
-        # create_ecr()
+        # create_ecr()  # Managed via Terraform modules
         create_github_oidc()
         print(f"=== ALL BOOTSTRAP RESOURCES FOR {ENV.upper()} ARE READY ===")
