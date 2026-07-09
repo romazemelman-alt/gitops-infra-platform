@@ -10,7 +10,7 @@ node_desired_size = 1
 instance_types    = ["t3.medium"]
 capacity_type     = "SPOT"
 
-node_policies = [
+aws_managed_policies = [
   "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
   "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
   "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
@@ -19,3 +19,5 @@ node_policies = [
 custom_policies = []
 
 max_image_count = 20
+
+domain_name = "dev.terasky.com"

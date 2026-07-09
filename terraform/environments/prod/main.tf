@@ -2,6 +2,7 @@ provider "aws" {
   region = var.aws_region
 }
 
+
 module "ecr_app" {
   source          = "../../modules/ecr"
   repository_name = "${var.environment}-k8s-node-app"
@@ -28,12 +29,22 @@ resource "aws_iam_policy" "secrets_manager" {
   })
 }
 
+module "dns" {
+  source      = "../../modules/dns"
+  domain_name = "dev.terasky.my"
+  environment = var.environment
+}
+
 module "iam" {
   source               = "../../modules/iam"
   cluster_name         = var.cluster_name
   environment          = var.environment
   aws_managed_policies = var.aws_managed_policies
   custom_policies      = concat(var.custom_policies, [aws_iam_policy.secrets_manager.arn])
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  cluster_oidc_issuer_url = module.eks.cluster_oidc_issuer_url
+  hosted_zone_id          = module.dns.zone_id
+
 }
 
 module "network" {
@@ -56,4 +67,5 @@ module "eks" {
   node_desired_size = var.node_desired_size
   instance_types    = var.instance_types
   capacity_type     = var.capacity_type
+
 }

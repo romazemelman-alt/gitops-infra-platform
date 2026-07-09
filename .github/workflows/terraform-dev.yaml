@@ -49,8 +49,8 @@ jobs:
           cd terraform/environments/dev
           terraform plan -var-file="dev.tfvars" -out=tfplan
 
-      - name: Terraform Apply
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        run: |
-          cd terraform/environments/dev
-          terraform apply tfplan
+#      - name: Terraform Apply
+#        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+#        run: |
+#          cd terraform/environments/dev
+#          terraform apply tfplan
