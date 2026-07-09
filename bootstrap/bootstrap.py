@@ -144,7 +144,7 @@ def create_github_oidc():
 
     # Output final ARNs for easy copy-pasting to GitHub Variables/Workflows
     print("\n" + "="*50)
-    print("🚀 USE THESE ARNs IN YOUR GITHUB REPOSITORIES:")
+    print(" USE THESE ARNs IN YOUR GITHUB REPOSITORIES:")
     print(f"1. For gitops-infra-platform (As GitHub Variable 'AWS_ROLE_ARN'):\n   arn:aws:iam::{ACCOUNT_ID}:role/{INFRA_ROLE_NAME}")
     print(f"2. For k8s-node-app (In env 'AWS_ROLE_ARN' inside workflow):\n   arn:aws:iam::{ACCOUNT_ID}:role/{APP_ROLE_NAME}")
     print("="*50 + "\n")
