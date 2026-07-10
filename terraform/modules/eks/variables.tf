@@ -7,7 +7,7 @@ variable "cluster_version" {
 variable "vpc_id" { type = string }
 variable "private_subnet_ids" { type = list(string) }
 
-# Переменные скалирования
+
 variable "node_min_size" { type = number }
 variable "node_max_size" { type = number }
 variable "node_desired_size" { type = number }
