@@ -25,12 +25,12 @@ module "vpc" {
 
   public_subnet_tags = {
     "kubernetes.io/role/elb" = 1
-    "kubernetes.io/cluster/dev-teraSky-gitops" = "shared"
+    "kubernetes.io/cluster/${var.environment}-teraSky-gitops" = "shared"
   }
 
   private_subnet_tags = {
     "kubernetes.io/role/internal-elb" = 1
-    "kubernetes.io/cluster/dev-teraSky-gitops" = "shared"
+    "kubernetes.io/cluster/${var.environment}-teraSky-gitops" = "shared"
   }
 
   tags = {

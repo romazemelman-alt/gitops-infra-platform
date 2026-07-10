@@ -21,3 +21,7 @@ custom_policies = []
 max_image_count = 20
 
 domain_name = "stage.terasky.com"
+
+github_token    = ""
+github_owner    = ""
+repository_name = ""

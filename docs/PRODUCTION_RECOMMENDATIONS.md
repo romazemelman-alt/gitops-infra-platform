@@ -5,8 +5,7 @@ Concrete, prioritized changes to make before treating this as a production syste
 ## Do before any real production traffic
 
 1. **Move Secrets Manager access to IRSA, off the node role.** Create a dedicated pod-level IAM role (mirroring the existing `lb_controller`/`external_dns` pattern in the `iam` module) trusted only by the app's own service account, and remove `secrets_manager` from the node group's attached policies. This closes the current gap where any pod on a node can read the app's secrets.
-2. **Terminate TLS at the ALB.** Provision an ACM certificate per domain (`dev.terasky.com`, etc. — Terraform already creates the Route53 zone these can validate against) and uncomment/wire the `alb.ingress.kubernetes.io/certificate-arn` annotation. Redirect HTTP→HTTPS.
-3. **Fix the network module's hardcoded cluster tag** so staging and prod subnets are tagged for their own cluster name, not `dev-teraSky-gitops`.
+2. **Terminate TLS at the ALB.** Provision an ACM certificate per domain (`dev.terasky.com`, etc. — Terraform already creates the Route53 zone these can validate against). Redirect HTTP→HTTPS.
 4. **Fix or replace `checkov.yaml`'s `check:` list** with `skip-check:` (or remove the file and run Checkov's full default rule set), and actually gate CI on its output rather than running it uninspected.
 5. **Scope the infra CI role down from `AdministratorAccess`** to a policy covering only the AWS services this project touches (EKS, EC2/VPC, IAM role/policy management for the specific role name patterns used, Route53, ECR, S3/DynamoDB for its own state). Full admin in a CI-triggered role is the single largest blast-radius risk in this stack.
 
@@ -26,13 +25,12 @@ Concrete, prioritized changes to make before treating this as a production syste
 
 ## Consistency and maintainability
 
-14. **Standardize on one Flux `HelmRelease` API version** (`v2`) across all three environments.
-15. **Move the RBAC-scoped node-reading pattern out of production paths**, or replace `/nodes` with a real health/business endpoint before this chart is used for anything beyond demonstrating IRSA/RBAC — a cluster-wide `list nodes` permission is unusual for an application workload and should be justified or removed.
-16. **Translate remaining non-English comments** in the `iam` and `network` modules for team consistency, and add a `CONTRIBUTING.md` documenting the module conventions used (naming, tagging, variable patterns) so new modules stay consistent.
-17. **Pin Terraform's `required_version` to match CI exactly** (or use a tilde constraint bounded on both sides, e.g. `~> 1.8.5`) to eliminate local/CI version drift.
-18. **Migrate S3 backend locking from DynamoDB (`dynamodb_table`) to native S3 locking (`use_lockfile`)** once your Terraform version supports it, to drop the DynamoDB table and its associated IAM permissions as a maintained dependency.
+14. **Move the RBAC-scoped node-reading pattern out of production paths**, or replace `/nodes` with a real health/business endpoint before this chart is used for anything beyond demonstrating IRSA/RBAC — a cluster-wide `list nodes` permission is unusual for an application workload and should be justified or removed.
+15. **Translate remaining non-English comments** in the `iam` and `network` modules for team consistency, and add a `CONTRIBUTING.md` documenting the module conventions used (naming, tagging, variable patterns) so new modules stay consistent.
+16. **Pin Terraform's `required_version` to match CI exactly** (or use a tilde constraint bounded on both sides, e.g. `~> 1.8.5`) to eliminate local/CI version drift.
+17. **Migrate S3 backend locking from DynamoDB (`dynamodb_table`) to native S3 locking (`use_lockfile`)** once your Terraform version supports it, to drop the DynamoDB table and its associated IAM permissions as a maintained dependency.
 
 ## Cost
 
-19. Reassess whether prod truly needs `m5.large` on-demand at `min_size = 3` continuously, or whether a mix of on-demand + SPOT (with PodDisruptionBudgets and topology spread constraints to tolerate interruption) is acceptable even in prod, depending on the app's actual availability requirements.
-20. Set ECR lifecycle `max_image_count` per environment based on actual rollback-window needs rather than the current flat 20/20/50 — untagged/superseded images older than your realistic rollback window are pure storage cost.
+18. Reassess whether prod truly needs `m5.large` on-demand at `min_size = 3` continuously, or whether a mix of on-demand + SPOT (with PodDisruptionBudgets and topology spread constraints to tolerate interruption) is acceptable even in prod, depending on the app's actual availability requirements.
+19. Set ECR lifecycle `max_image_count` per environment based on actual rollback-window needs rather than the current flat 20/20/50 — untagged/superseded images older than your realistic rollback window are pure storage cost.

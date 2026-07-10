@@ -20,3 +20,19 @@ variable "custom_policies" {
 variable "max_image_count" { type = number }
 
 variable "domain_name" { type = string }
+
+variable "github_token" {
+  type        = string
+  description = "GitHub Personal Access Token (PAT)"
+  sensitive   = true
+}
+
+variable "github_owner" {
+  type        = string
+  description = "GitHub owner (PAT)"
+}
+
+variable "repository_name" {
+  type        = string
+  description = "repo name GitOps"
+}

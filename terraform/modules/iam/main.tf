@@ -110,7 +110,6 @@ resource "aws_iam_policy" "external_dns" {
   })
 }
 
-# 4. Привязка политики к роли
 resource "aws_iam_role_policy_attachment" "external_dns_attachment" {
   policy_arn = aws_iam_policy.external_dns.arn
   role       = aws_iam_role.external_dns.name

@@ -21,3 +21,7 @@ custom_policies = []
 max_image_count = 50
 
 domain_name = "prod.terasky.com"
+
+github_token    = ""
+github_owner    = ""
+repository_name = ""

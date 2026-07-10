@@ -32,11 +32,6 @@ Every design choice here traded something away. This lists the main ones explici
 **Gained:** meaningful compute cost savings in the environments used most often for iteration.
 **Given up:** dev/staging nodes can be reclaimed with 2 minutes' notice, so those environments are not reliable for anything time-sensitive (e.g., a demo mid-interruption) unless workloads tolerate node churn gracefully (the app's `replicaCount: 1`/`2` and lack of PodDisruptionBudgets mean brief downtime is likely on interruption).
 
-## No TLS termination at the ALB (by default)
-**Chosen:** the ACM certificate annotation in `ingress.yaml` is present but commented out; traffic is HTTP-only until someone uncomments it and supplies a cert ARN.
-**Gained:** one less prerequisite (an issued ACM cert) to have ready before the first deploy works end-to-end.
-**Given up:** unencrypted traffic to the ALB by default, including for staging/prod unless explicitly fixed per environment.
-
 ## Terraform-managed cluster add-on (LB Controller) vs. GitOps-managed
 **Chosen:** the AWS Load Balancer Controller is installed via Terraform's `helm` provider, in the same apply as the AWS infrastructure, while everything app-related goes through Flux.
 **Gained:** the controller (needed for the cluster to be usable at all) is guaranteed present as part of cluster provisioning, without depending on Flux being bootstrapped first.
